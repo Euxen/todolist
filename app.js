@@ -3,6 +3,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose")
+const _ = require("lodash");
 
 const app = express();
 
@@ -11,7 +12,6 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-// mongoose.connect("mongodb://localhost:27017/todolistDB", {useNewUrlParser: true});
 mongoose.connect("mongodb://0.0.0.0:27017/todoListDB" , {useNewUrlParser: true});
 
 const itemsSchema = new mongoose.Schema({
@@ -21,75 +21,25 @@ const itemsSchema = new mongoose.Schema({
 const Item = mongoose.model("Item", itemsSchema,)
 
 const item1 = new Item({
-  name: "Study",
+  name: "Welcome to your new to-do List!",
 });
 const item2 = new Item({
-  name: "Sleep",
+  name: "Hit the + button to add a new item!",
 });
 const item3 = new Item({
-  name: "Program",
+  name: "<--- Press the checkbox to delete the completed task!",
 });
-
-//Will display what we need
-const itemList = [];
 
 //Only when we need default items will we use this
 const defaultList = [item1, item2, item3]
 
-// async function getDefaultData(){
+//This schema helps us save whatever custom page the user creates for his specific lists
+const listSchema = {
+  name: String,
+  items: [itemsSchema]
+}
 
-//   try 
-//   {
-//   //   // console.log(itemList)
-//   //   await Item.insertMany(defaultList)
-//   //   .then(function()
-//   //   {
-//   //     console.log("Succesfully inserted default values");
-//   //     Item.save();
-//   //     getAll();
-//   //   })
-//   // }
-//   // catch(err) 
-//   // {
-//   //   console.log(err)
-//   // }}
-//   }
-//   catch(err){
-//     console.log(err)
-//   }}
-
-
-// async function getAll(){
-//   try
-//   {
-//     //We get what is saved in the database
-//     const querryResult = await Item.find();
-
-//     console.log(querryResult);
-    
-//     // //   querryResult.forEach((item) => {
-//     // //     const itemExist = itemList.includes(item);
-
-//     // //     if(!itemExist){
-//     // //       itemList.push(item);
-//     // //     }
-//     // // })
-    
-//     // //find the difference between two arrays
-//     // let difference = querryResult.filter(x => !itemList.includes(x));
-
-//     // //whatever is different, you add it to the local array to display
-//     // difference.forEach((newItem) => {
-//     //   itemList.push(newItem);
-//     // })
-
-
-//   }
-//   catch(err){
-//     console.log(err)
-//   }
-// };
-
+const List = mongoose.model("List", listSchema);
 
 app.get("/", async (req, res) =>
 {
@@ -129,26 +79,70 @@ app.get("/", async (req, res) =>
   
 });
 
-app.post("/", function(req, res){
+// This is for dynamically creating pages
+app.get("/:customListName", async(req, res) => {
+
+  const customListName = _.capitalize(req.params.customListName);
+
+  const queryResult = await List.findOne({name: customListName});
+
+  if (!queryResult){
+    const list = new List({
+      name: customListName,
+      items: defaultList
+    })
+  
+     list.save();
+
+     res.redirect("/" + customListName);
+  }
+  else{
+    res.render("list", {listTitle: customListName, newListItems: queryResult.items});
+  }
+
+  
+
+})
+
+app.post("/", async(req, res) => {
 
   const itemName = req.body.newItem;
+  const listName = req.body.list;
   
   const item = new Item({
     name: itemName
   });
 
-  item.save();
-  res.redirect("/");
+  if (listName === "Today"){
+    item.save();
+    res.redirect("/");
+  }
+  else{
+    const dyanmicList = await List.findOne({name: listName});
+    dyanmicList.items.push(item);
+    dyanmicList.save();
+    res.redirect("/" + listName);
+  }
   
 });
 
 //Used an async/await so the app can reload after the delete is done
 app.post("/delete", async (req, res) => {
   const checkedItemID = req.body.checkbox;
+  const listName = req.body.listName;
 
-  await Item.findByIdAndRemove(checkedItemID);
+  if (listName === "Today"){
+    await Item.findByIdAndRemove(checkedItemID);
 
-  res.redirect("/");
+    res.redirect("/");
+  }
+  else{
+    await List.findOneAndUpdate({name: listName},{$pull: {items:{_id: checkedItemID}}});
+    res.redirect("/" + listName);
+  }
+
+
+  
 });
 
 app.get("/work", function(req,res){
