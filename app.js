@@ -30,73 +30,125 @@ const item3 = new Item({
   name: "Program",
 });
 
-const defaultItems = [item1, item2, item3];
-
+//Will display what we need
 const itemList = [];
 
-async function getDefaultData(){
+//Only when we need default items will we use this
+const defaultList = [item1, item2, item3]
 
-  itemList.push(item1);
-  itemList.push(item2);
-  itemList.push(item3);
+// async function getDefaultData(){
 
-  try 
-  {
-    await Item.insertMany(itemList)
-    .then(function()
-    {
-      console.log("Succesfully inserted default values");
-    })
-  }
-  catch(err) 
-  {
-    console.log(err)
-  }}
-  
+//   try 
+//   {
+//   //   // console.log(itemList)
+//   //   await Item.insertMany(defaultList)
+//   //   .then(function()
+//   //   {
+//   //     console.log("Succesfully inserted default values");
+//   //     Item.save();
+//   //     getAll();
+//   //   })
+//   // }
+//   // catch(err) 
+//   // {
+//   //   console.log(err)
+//   // }}
+//   }
+//   catch(err){
+//     console.log(err)
+//   }}
 
 
-async function getAll(){
-  try
-  {
-    const querryResult = await Item.find();
-      querryResult.forEach((item) => {
-      itemList.push(item);
-    })
+// async function getAll(){
+//   try
+//   {
+//     //We get what is saved in the database
+//     const querryResult = await Item.find();
+
+//     console.log(querryResult);
     
-  }
-  catch(err){
-    console.log(err)
-  }
-};
+//     // //   querryResult.forEach((item) => {
+//     // //     const itemExist = itemList.includes(item);
+
+//     // //     if(!itemExist){
+//     // //       itemList.push(item);
+//     // //     }
+//     // // })
+    
+//     // //find the difference between two arrays
+//     // let difference = querryResult.filter(x => !itemList.includes(x));
+
+//     // //whatever is different, you add it to the local array to display
+//     // difference.forEach((newItem) => {
+//     //   itemList.push(newItem);
+//     // })
 
 
-app.get("/", function(req, res) 
+//   }
+//   catch(err){
+//     console.log(err)
+//   }
+// };
+
+
+app.get("/", async (req, res) =>
 {
-  if (itemList.length === 0 ){
-    // get something to insert default values then redirect to home page 
-    getDefaultData();
+  // !!!->>> Course was using an old version of mongoose, thus the following code won't work with the new version of mongoose because callback was deprecated
+  // 
+  // Item.find({}, function(err, foundItems){
+  //   if(itemList.length === 0){
+  //       Item.insertMany(defaultItems, function(err){
+  //         if(err){
+  //           console.log(err);
+  //         }
+  //         else{
+  //           console.log("Successfully saved items");
+  //         }
+  //       });
+
+  //       res.redirect("/");
+
+  //   }
+  //   else{
+  //     res.render("list", {listTitle: "Today", newListItems: foundItems})
+  //   }
+  
+  // });
+  
+  //New way of doing it using Async/Await
+  //
+  const foundItems = await Item.find();
+  
+  if (foundItems.length === 0){
+    await Item.insertMany(defaultList)
     res.redirect("/");
   }
   else{
-    // get all existing from the database and render it
-    getAll();
-    res.render("list", {listTitle: "Today", newListItems: itemList});
+    res.render("list", {listTitle: "Today", newListItems: foundItems});
   }
   
-  
-
 });
 
 app.post("/", function(req, res){
 
   const itemName = req.body.newItem;
-
+  
   const item = new Item({
     name: itemName
   });
 
   item.save();
+  res.redirect("/");
   
+});
+
+//Used an async/await so the app can reload after the delete is done
+app.post("/delete", async (req, res) => {
+  const checkedItemID = req.body.checkbox;
+
+  await Item.findByIdAndRemove(checkedItemID);
+
+  res.redirect("/");
 });
 
 app.get("/work", function(req,res){
