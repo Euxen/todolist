@@ -6,3 +6,5 @@ This project was done with the following:
 - EJS (Template Engine)
 - MongoDB (Database)
 - Lodash (Helps to capitalize url path just in case of a mistype)
+
+
